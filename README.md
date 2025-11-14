@@ -6,5 +6,4 @@
   functions = "functions"
 
 [[plugins]]
-package = "@netlify/plugin-functions-install-core"
-
+  package = "@netlify/plugin-functions-install-core"

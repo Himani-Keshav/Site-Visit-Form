@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Site Visit Monitoring Form</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f6;margin:0;padding:18px}
+    .card{max-width:760px;margin:auto;background:#fff;padding:18px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.06)}
+    h1{font-size:20px;text-align:center;margin:0 0 12px}
+    label{display:block;margin-top:8px;font-weight:600}
+    input,textarea,select{width:100%;padding:10px;margin-top:6px;border:1px solid #d1d5db;border-radius:6px;font-size:14px}
+    textarea{min-height:78px}
+    .two{display:flex;gap:12px}
+    .two > *{flex:1}
+    canvas{width:100%;height:160px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;touch-action:none}
+    .row{display:flex;gap:10px;margin-top:8px}
+    button{background:#0f62fe;color:#fff;border:0;padding:10px 14px;border-radius:8px;cursor:pointer;font-weight:600}
+    .btn-ghost{background:#e6eefc;color:#0f62fe}
+    .small{font-size:13px;color:#6b7280;margin-top:8px}
+    .success{color:green;margin-top:12px}
+    .error{color:red;margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Site Visit Monitoring Form</h1>
+    <form id="visitForm">
+      <label>Employee Name</label>
+      <input type="text" name="employeeName" required />
+
+      <div class="two">
+        <div>
+          <label>In Date</label>
+          <input type="date" name="inDate" required />
+        </div>
+        <div>
+          <label>Out Date</label>
+          <input type="date" name="outDate" required />
+        </div>
+      </div>
+
+      <label>Site / Location</label>
+      <input type="text" name="siteLocation" required />
+
+      <label>Purpose of Visit / Work Description</label>
+      <textarea name="purpose"></textarea>
+
+      <h3 style="margin-top:12px">Supervisor Details</h3>
+      <label>Supervisor Name</label>
+      <input type="text" name="supervisorName" required />
+
+      <label>Supervisor Signature (Draw below)</label>
+      <canvas id="supervisorSig"></canvas>
+      <div class="row">
+        <button type="button" onclick="clearCanvas('supervisorSig')" class="btn-ghost">Clear</button>
+        <div style="flex:1" class="small">Draw signature with finger/stylus. No upload required.</div>
+      </div>
+
+      <h3 style="margin-top:12px">Employee Signature</h3>
+      <canvas id="employeeSig"></canvas>
+      <div class="row">
+        <button type="button" onclick="clearCanvas('employeeSig')" class="btn-ghost">Clear</button>
+        <div style="flex:1" class="small"></div>
+      </div>
+
+      <label>Remarks (if any)</label>
+      <textarea name="remarks"></textarea>
+
+      <div style="margin-top:12px">
+        <button type="submit">Submit</button>
+      </div>
+
+      <div id="message" class="small"></div>
+    </form>
+
+    <p style="font-size:12px;color:#555;margin-top:14px">
+      Contact: Goel Equipments — form sends signed PDF to <strong>hr.himani@goelequipments.com</strong>.
+    </p>
+  </div>
+
+<script>
+/* signature helper */
+function setupCanvas(id) {
+  const canvas = document.getElementById(id);
+  const ctx = canvas.getContext('2d');
+  // set actual drawing size in device pixels for crispness
+  function resize() {
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * ratio;
+    canvas.height = canvas.clientHeight * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  let drawing = false;
+  let last = {x:0,y:0};
+
+  function posFromEvent(e) {
+    const rect = canvas.getBoundingClientRect();
+    if (e.touches && e.touches.length) {
+      return {x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top};
+    }
+    return {x: e.clientX - rect.left, y: e.clientY - rect.top};
+  }
+
+  canvas.addEventListener('mousedown', e => { drawing=true; last=posFromEvent(e); });
+  canvas.addEventListener('touchstart', e => { drawing=true; last=posFromEvent(e); e.preventDefault(); });
+
+  function drawFromEvent(e) {
+    if(!drawing) return;
+    const p = posFromEvent(e);
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+    e.preventDefault();
+  }
+
+  canvas.addEventListener('mousemove', drawFromEvent);
+  canvas.addEventListener('touchmove', drawFromEvent);
+
+  function stop() { drawing=false; }
+  canvas.addEventListener('mouseup', stop);
+  canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchend', stop);
+
+  return {
+    clear: () => ctx.clearRect(0,0,canvas.width,canvas.height),
+    toDataURL: () => {
+      // return PNG dataURL scaled to 400 px width for smaller PDFs (keeps aspect)
+      const tmp = document.createElement('canvas');
+      const ratio = 400 / canvas.clientWidth;
+      tmp.width = canvas.clientWidth * ratio;
+      tmp.height = canvas.clientHeight * ratio;
+      const tctx = tmp.getContext('2d');
+      tctx.drawImage(canvas, 0, 0, tmp.width, tmp.height);
+      return tmp.toDataURL('image/png');
+    },
+    isEmpty: () => {
+      // quick check if blank (by comparing to blank canvas)
+      const blank = document.createElement('canvas');
+      blank.width = canvas.width;
+      blank.height = canvas.height;
+      const bctx = blank.getContext('2d');
+      return canvas.toDataURL() === blank.toDataURL();
+    }
+  };
+}
+
+const sup = setupCanvas('supervisorSig');
+const emp = setupCanvas('employeeSig');
+function clearCanvas(id) {
+  const obj = id==='supervisorSig' ? sup : emp;
+  obj.clear();
+}
+
+/* form submit */
+const form = document.getElementById('visitForm');
+const message = document.getElementById('message');
+
+form.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  message.textContent = 'Submitting...';
+  message.className = 'small';
+
+  // collect form data
+  const fd = new FormData(form);
+  const data = {};
+  fd.forEach((v,k) => data[k] = v);
+
+  if (sup.isEmpty()) {
+    message.textContent = 'Please ask Supervisor to sign (draw signature).';
+    message.className = 'error';
+    return;
+  }
+  if (emp.isEmpty()) {
+    message.textContent = 'Please fill Employee signature.';
+    message.className = 'error';
+    return;
+  }
+
+  data.supervisorSig = sup.toDataURL();
+  data.employeeSig = emp.toDataURL();
+
+  try {
+    const res = await fetch('/.netlify/functions/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (res.ok) {
+      message.textContent = 'Submitted successfully. A PDF has been emailed to HR.';
+      message.className = 'success';
+      form.reset();
+      sup.clear(); emp.clear();
+    } else {
+      message.textContent = 'Error: ' + (json && json.error ? json.error : res.statusText);
+      message.className = 'error';
+    }
+  } catch (err) {
+    message.textContent = 'Network error: ' + err.message;
+    message.className = 'error';
+  }
+});
+</script>
+</body>
+</html>

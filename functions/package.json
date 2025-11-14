@@ -1,0 +1,10 @@
+{
+  "name": "site-visit-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for site visit form",
+  "main": "submit.js",
+  "dependencies": {
+    "pdfkit": "^0.13.0",
+    "nodemailer": "^6.9.4"
+  }
+}
